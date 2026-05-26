@@ -4,6 +4,9 @@ const SUPABASE_URL    = process.env.SUPABASE_URL;
 const SUPABASE_KEY    = process.env.SUPABASE_SERVICE_KEY;
 const ALLOWED_ORIGINS = ['https://amitcsenita.github.io', 'http://localhost'];
 const VALID_CATS      = new Set(['work', 'personal', 'health', 'general']);
+function isValidCat(c) {
+  return VALID_CATS.has(c) || /^c_[a-z0-9_]{1,55}$/.test(c);
+}
 
 module.exports = async function handler(req, res) {
   const origin = req.headers.origin;
@@ -74,7 +77,7 @@ module.exports = async function handler(req, res) {
     if (!Number.isInteger(hour) || hour < 0 || hour > 23)  return res.status(400).json({ error: 'Invalid hour' });
     if (typeof task_text !== 'string' || !task_text.trim()) return res.status(400).json({ error: 'task_text required' });
     if (task_text.length > 500)                             return res.status(400).json({ error: 'task_text too long' });
-    if (!VALID_CATS.has(category))                          return res.status(400).json({ error: 'Invalid category' });
+    if (!isValidCat(category))                               return res.status(400).json({ error: 'Invalid category' });
 
     const r = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
       method:  'POST',
@@ -106,7 +109,7 @@ module.exports = async function handler(req, res) {
       update.task_text = task_text.trim();
     }
     if (category !== undefined) {
-      if (!VALID_CATS.has(category)) return res.status(400).json({ error: 'Invalid category' });
+      if (!isValidCat(category)) return res.status(400).json({ error: 'Invalid category' });
       update.category = category;
     }
     if (completed !== undefined) update.completed = Boolean(completed);
