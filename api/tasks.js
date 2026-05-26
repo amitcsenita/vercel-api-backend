@@ -3,10 +3,10 @@ const { verifyToken } = require('./_auth');
 const SUPABASE_URL    = process.env.SUPABASE_URL;
 const SUPABASE_KEY    = process.env.SUPABASE_SERVICE_KEY;
 const ALLOWED_ORIGINS = ['https://amitcsenita.github.io', 'http://localhost'];
-const VALID_CATS      = new Set(['work', 'personal', 'health', 'general']);
-function isValidCat(c) {
-  return VALID_CATS.has(c) || /^c_[a-z0-9_]{1,55}$/.test(c);
-}
+const VALID_CATS  = new Set(['work', 'personal', 'health', 'general']);
+const VALID_PRIOS = new Set(['high', 'normal', 'low']);
+function isValidCat(c)  { return VALID_CATS.has(c)  || /^c_[a-z0-9_]{1,55}$/.test(c); }
+function isValidPrio(p) { return VALID_PRIOS.has(p); }
 
 module.exports = async function handler(req, res) {
   const origin = req.headers.origin;
@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
     }
 
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/tasks?date=eq.${date}&user_id=eq.${uid}&order=hour.asc&select=task_id,hour,task_text,category,completed`,
+      `${SUPABASE_URL}/rest/v1/tasks?date=eq.${date}&user_id=eq.${uid}&order=hour.asc&select=task_id,hour,task_text,category,priority,completed`,
       { headers: sbH }
     );
     return res.status(200).json(await r.json());
@@ -71,18 +71,19 @@ module.exports = async function handler(req, res) {
   // ─── POST ───────────────────────────────────────────────────────────────────
 
   if (req.method === 'POST') {
-    const { date: d, hour, task_text, category = 'general' } = req.body ?? {};
+    const { date: d, hour, task_text, category = 'general', priority = 'normal' } = req.body ?? {};
 
     if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d))            return res.status(400).json({ error: 'Invalid date' });
     if (!Number.isInteger(hour) || hour < 0 || hour > 23)  return res.status(400).json({ error: 'Invalid hour' });
     if (typeof task_text !== 'string' || !task_text.trim()) return res.status(400).json({ error: 'task_text required' });
     if (task_text.length > 500)                             return res.status(400).json({ error: 'task_text too long' });
-    if (!isValidCat(category))                               return res.status(400).json({ error: 'Invalid category' });
+    if (!isValidCat(category))                              return res.status(400).json({ error: 'Invalid category' });
+    if (!isValidPrio(priority))                             return res.status(400).json({ error: 'Invalid priority' });
 
     const r = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
       method:  'POST',
       headers: { ...sbH, 'Prefer': 'return=representation' },
-      body:    JSON.stringify({ date: d, hour, task_text: task_text.trim(), category, completed: false, user_id: uid }),
+      body:    JSON.stringify({ date: d, hour, task_text: task_text.trim(), category, priority, completed: false, user_id: uid }),
     });
 
     if (!r.ok) {
@@ -99,7 +100,7 @@ module.exports = async function handler(req, res) {
     const taskId = parseInt(id);
     if (!taskId || taskId < 1) return res.status(400).json({ error: 'Valid id required' });
 
-    const { task_text, category, completed } = req.body ?? {};
+    const { task_text, category, priority, completed } = req.body ?? {};
     const update = {};
 
     if (task_text !== undefined) {
@@ -108,9 +109,13 @@ module.exports = async function handler(req, res) {
       }
       update.task_text = task_text.trim();
     }
-    if (category !== undefined) {
-      if (!isValidCat(category)) return res.status(400).json({ error: 'Invalid category' });
+    if (category  !== undefined) {
+      if (!isValidCat(category))  return res.status(400).json({ error: 'Invalid category' });
       update.category = category;
+    }
+    if (priority  !== undefined) {
+      if (!isValidPrio(priority)) return res.status(400).json({ error: 'Invalid priority' });
+      update.priority = priority;
     }
     if (completed !== undefined) update.completed = Boolean(completed);
 
