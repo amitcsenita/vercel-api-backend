@@ -63,7 +63,7 @@ module.exports = async function handler(req, res) {
     if (learn  !== undefined) row.learn  = String(learn).slice(0, 2000);
 
     // Upsert: insert or update on (user_id, date) conflict
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/reflections`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/reflections?on_conflict=user_id,date`, {
       method:  'POST',
       headers: { ...sbH, 'Prefer': 'return=representation,resolution=merge-duplicates' },
       body:    JSON.stringify(row),
