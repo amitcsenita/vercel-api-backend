@@ -29,7 +29,7 @@ async function verifyToken(req) {
 
 // Returns true only for the designated admin account.
 function isAdmin(decoded) {
-  return decoded && decoded.email === ADMIN_EMAIL;
+  return !!(decoded && decoded.email === ADMIN_EMAIL);
 }
 
 // Returns the initialized firebase-admin instance (for use in other handlers).
